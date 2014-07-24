@@ -1,7 +1,6 @@
 package gr.uom.se.antlrtest;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
@@ -18,14 +17,14 @@ public class App {
    public static final String RESOURCES = "src/test/resources/";
 
    public static void main(String[] args) throws IOException {
-      String str = null;
-
+      
       File resDir = new File(RESOURCES);
       for (File file : resDir.listFiles()) {
          if (file.canRead()) {
             // test(file.getPath());
             System.out.println("Loading file: " + file);
             CommentMapper mapper = new CommentMapper(file);
+            //new FileInputStream(file).getChannel().
             int linesOfCode = linesOfCode(mapper);
             int emptyLines = emptyLines(mapper);
             int linesOfComments = linesOfComments(mapper);
@@ -74,12 +73,6 @@ public class App {
             msg += "Start: " + token.getStartIndex() + "\n";
             msg += "End: " + token.getStopIndex() + "\n";
 
-            if (path.endsWith("test.c")
-                  && token.getType() == CPPCommentsParser.LINE_COMMENT) {
-               CharStream stream = token.getInputStream();
-
-            }
-
             if (token.getType() == CPPCommentsParser.LINE_COMMENT) {
                if (token.getCharPositionInLine() > 0) {
                   CharStream stream = token.getInputStream();
@@ -95,9 +88,6 @@ public class App {
             } else if (token.getType() == CPPCommentsParser.LINE_COMMENT) {
                if (token.getCharPositionInLine() > 0) {
                   // Find the code before comment
-                  CharStream stream = token.getInputStream();
-                  Interval interval = new Interval(0,
-                        token.getCharPositionInLine() - 1);
                }
             }
 
