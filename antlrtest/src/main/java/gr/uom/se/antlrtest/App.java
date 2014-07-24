@@ -1,18 +1,10 @@
 package gr.uom.se.antlrtest;
 
-import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
-import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
@@ -26,13 +18,31 @@ public class App {
    public static final String RESOURCES = "src/test/resources/";
 
    public static void main(String[] args) throws IOException {
+      String str = null;
+
       File resDir = new File(RESOURCES);
       for (File file : resDir.listFiles()) {
          if (file.canRead()) {
-            test(file.getPath());
+            // test(file.getPath());
+            System.out.println("Loading file: " + file);
+            CommentMapper mapper = new CommentMapper(file);
+            int linesOfCode = linesOfCode(mapper);
+            int emptyLines = emptyLines(mapper);
+            int linesOfComments = linesOfComments(mapper);
+            int mixedLines = mixLines(mapper);
+            System.out.println("Total Lines: " + mapper.getLinesCount());
+            System.out.println("Lines of Code: " + linesOfCode);
+            System.out.println("Empty Lines: " + emptyLines);
+            System.out.println("Lines of Comments: " + linesOfComments);
+            System.out.println("Mix Lines: " + mixedLines);
+            /*System.out.println(mapper.getLinesCount());
+            if (file.getName().endsWith("test.c")) {
+               for (LineRegion region : mapper.getCodeRegions(82)) {
+                  System.out.println(region);
+               }
+            }*/
          }
       }
-
    }
 
    static void test(String path) throws IOException {
@@ -43,6 +53,7 @@ public class App {
       CommonTokenStream tokens = new CommonTokenStream(lexer);
 
       tokens.fill();
+
       System.out.println(tokens.size());
       System.out.println(tokens.index());
 
@@ -99,190 +110,55 @@ public class App {
       System.out.println(str.replaceAll("\r\n", "\n"));
    }
 
-   static String getCodeBeforeComment(Token token) {
-      if (token.getCharPositionInLine() == 0) {
-         return null;
-      }
-      CharStream stream = token.getInputStream();
-      Interval interval = new Interval(0, token.getCharPositionInLine() - 1);
-      String code = stream.getText(interval);
-      code = code.trim();
-      if (!code.isEmpty()) {
-         return code;
-      }
-      return null;
-   }
-
-   static String getCodeAfterComment(Token token) {
-      // token.getInputStream().
-      return null;
-   }
-
-   static class LineMapper {
-      /**
-       * Contents of file based on lines. Empty lines have null char array.
-       */
-      protected char[][] contents;
-
-      public LineMapper(InputStream input) throws IOException {
-
-         BufferedReader reader = new BufferedReader(
-               new InputStreamReader(input));
-         init(reader);
-      }
-
-      private void init(BufferedReader reader) throws IOException {
-         List<String> contentsList = new ArrayList<String>();
-         String line = null;
-
-         while ((line = reader.readLine()) != null) {
-            contentsList.add(line);
-         }
-
-         contents = new char[contentsList.size()][];
-
-         for (int i = 0; i < contentsList.size(); i++) {
-            line = contentsList.get(i);
-            if (!line.trim().isEmpty()) {
-               this.contents[i] = line.toCharArray();
-            }
+   static int linesOfCode(CommentMapper mapper) {
+      int size = mapper.getLinesCount();
+      int counter = 0;
+      for (int i = 0; i < size; i++) {
+         if(containsCode(mapper, i)) {
+            counter++;
          }
       }
-
-      private void init(Reader reader) throws IOException {
-         BufferedReader br = null;
-         if (reader instanceof BufferedReader) {
-            br = (BufferedReader) reader;
-         } else {
-            br = new BufferedReader(reader);
-         }
-         this.init(br);
-      }
-
-      /**
-       * Called during initialization when a non empty line is added to
-       * {@link #contents} array.
-       * <p>
-       * 
-       * When this method is called the {@link #contents} array is already
-       * created. The default implementation does nothing.
-       * 
-       * @param line
-       *           the contents of the line
-       * @param i
-       *           the number of line (0-based)
-       */
-      protected void monEmptyLine(char[] line, int i) {
-      }
-
-      public LineMapper(String contents) throws IOException {
-         this.init(new StringReader(contents));
-      }
-
-      /**
-       * Get the contents of the line i.
-       * <p>
-       * 
-       * @param i
-       *           the number of line (0-based)
-       * @return the contents of the given line or null if the line is an empty
-       *         one or contains only whitespace characters.
-       * @throws ArrayIndexOutOfBoundsException
-       *            if i is not within the range of the lines (0..n-1 where n is
-       *            the lines length).r
-       */
-      public String getLine(int i) {
-         return new String(contents[i]);
-      }
-
-      /**
-       * Get the number of lines.
-       * <p>
-       * 
-       * @return the number of lines, included those with empty contents
-       */
-      public int getLinesCount() {
-         return contents.length;
-      }
-
-      /**
-       * Check if the given line doesn't contain any printable character.
-       * <p>
-       * 
-       * @param i
-       *           the number of line (0-based)
-       * @return true if the given line doesn't contain any printable character
-       */
-      public boolean isEmpty(int i) {
-         return contents[i] == null;
-      }
-   }
-
-   static class CommentMapper extends LineMapper {
-
-      private static int COMMENT = 0;
-      private static int CODE = 1;
-      private static int MIX = 2;
-
-      private int[] lineMap;
-
-      public CommentMapper(InputStream input) throws IOException {
-         super(input);
-         init(getCharStream(input));
-      }
-
-      public CommentMapper(String content) throws IOException {
-         super(content);
-         init(getCharStream(content));
-      }
-
-      private CharStream getCharStream(String content) {
-         return new ANTLRInputStream(content);
-      }
-
-      private CharStream getCharStream(InputStream content) throws IOException {
-         return new ANTLRInputStream(content);
-      }
-
-      private void init(CharStream stream) {
-         CPPCommentsLexer lexer = new CPPCommentsLexer(stream);
-         CommonTokenStream tokens = new CommonTokenStream(lexer);
-         tokens.fill();
-         lineMap = new int[contents.length];
-         for (Token token : tokens.getTokens()) {
-            processToken(token);
-         }
-      }
-
-      private void processToken(Token token) {
-         if (token.getType() == CPPCommentsLexer.LINE_COMMENT) {
-            processSingleLineToken(token);
-         } else if (token.getType() == CPPCommentsLexer.COMMENT) {
-            processMultiLineToken(token);
-         }
-      }
-
-      /**
-       * Process a token that corresponds to a single line comment.
-       * <p>
-       * When we have a single line that means a code can only be before
-       * comment. By default everything after the comment token is comment, so
-       * we must check to see if there are characters before the comment token.
-       * If there are characters before token they probably are code characters
-       * however there are cases when those characters are part of a multiline
-       * comment so we must check the previous token (if any).
-       * 
-       * @param token
-       *           to be processed
-       */
-      private void processSingleLineToken(Token token) {
-
-      }
-
-      private void processMultiLineToken(Token token) {
-
-      }
+      return counter;
    }
    
-   //static class TokensList extends LinkedList
+   static boolean containsCode(CommentMapper mapper, int line) {
+      for (LineRegion codeRegion : mapper.getCodeRegions(line)) {
+         if(!LineMapper.isWS(mapper.getContents(codeRegion))) {
+            return true;
+         }
+      }
+      return false;
+   }
+   static int emptyLines(CommentMapper mapper) {
+      int size = mapper.getLinesCount();
+      int counter = 0;
+      for (int i = 0; i < size; i++) {
+         if(mapper.isWS(i)) {
+            counter++;
+         }
+      }
+      return counter;
+   }
+   
+   static int linesOfComments(CommentMapper mapper) {
+      int size = mapper.getLinesCount();
+      int counter = 0;
+      for (int i = 0; i < size; i++) {
+         if(mapper.containsComments(i)) {
+            counter++;
+         }
+      }
+      return counter;
+   }
+   
+   static int mixLines(CommentMapper mapper) {
+      int size = mapper.getLinesCount();
+      int counter = 0;
+      for (int i = 0; i < size; i++) {
+         if(mapper.containsComments(i) && containsCode(mapper, i)) {
+            counter++;
+         }
+      }
+      return counter;
+   }
 }

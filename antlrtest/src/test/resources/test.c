@@ -80,7 +80,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
 
       /* Advance past address part. */
       while (*p && !ISSPACE(*p))
-        p++;
+        /* mulitline */ p++; /* an other multi */ p++; /* multi */ p++; 
       if (!*p)
         /* Ignore line if reached end of line. */
         continue;
